@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cooking Recipe Management System</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <!-- Navigation Bar -->
+  <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom sticky-top shadow-sm">
+    <div class="container">
+      <a class="navbar-brand d-flex align-items-center gap-2" href="#" onclick="showView('home')">
+        <i class="bi bi-fire text-danger"></i>
+        <span>RecipeCook</span>
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navContent">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="navContent">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item">
+            <a class="nav-link active" id="nav-home" href="#" onclick="showView('home')">Home</a>
+          </li>
+          <li class="nav-item member-only d-none">
+            <a class="nav-link" id="nav-favorites" href="#" onclick="showView('favorites')">My Favorites</a>
+          </li>
+          <li class="nav-item member-only d-none">
+            <a class="nav-link" id="nav-my-reviews" href="#" onclick="showView('my-reviews')">My Reviews</a>
+          </li>
+          <li class="nav-item admin-only d-none">
+            <a class="nav-link" id="nav-admin" href="#" onclick="showView('admin')">Admin Panel</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/api-docs" target="_blank">Swagger Docs</a>
+          </li>
+        </ul>
+
+        <div class="d-flex align-items-center gap-2">
+          <div id="auth-guest" class="d-flex gap-2">
+            <button class="btn btn-outline-primary btn-sm" onclick="openLoginModal()">Login</button>
+            <button class="btn btn-primary btn-sm" onclick="openRegisterModal()">Register</button>
+          </div>
+          <div id="auth-user" class="d-none align-items-center gap-3">
+            <span class="badge bg-secondary" id="user-badge">User</span>
+            <span class="fw-semibold small" id="user-display-name">Username</span>
+            <button class="btn btn-outline-danger btn-sm" onclick="logout()">Logout</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Container -->
+  <main class="container my-4">
+    <!-- Notification alert -->
+    <div id="alert-container"></div>
+
+    <!-- VIEW 1: Home / Recipe List -->
+    <section id="view-home">
+      <!-- Hero / Search Section -->
+      <div class="bg-white p-4 rounded-3 shadow-sm mb-4">
+        <div class="row align-items-center g-3">
+          <div class="col-md-5">
+            <h2 class="fw-bold mb-1">Discover Delicious Recipes</h2>
+            <p class="text-muted small mb-0">Search recipes, filter by category or difficulty level</p>
+          </div>
+          <div class="col-md-7">
+            <form id="search-form" onsubmit="handleSearch(event)" class="row g-2">
+              <div class="col-sm-5">
+                <input type="text" id="search-keyword" class="form-control" placeholder="Search recipe name...">
+              </div>
+              <div class="col-sm-3">
+                <select id="search-difficulty" class="form-select">
+                  <option value="">Difficulty: All</option>
+                  <option value="EASY">Easy</option>
+                  <option value="MEDIUM">Medium</option>
+                  <option value="HARD">Hard</option>
+                </select>
+              </div>
+              <div class="col-sm-4 d-flex gap-2">
+                <button type="submit" class="btn btn-primary w-100"><i class="bi bi-search"></i> Search</button>
+                <button type="button" class="btn btn-outline-secondary" onclick="resetFilters()"><i class="bi bi-arrow-counterclockwise"></i></button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Category Filter Bar -->
+      <div class="mb-4">
+        <h5 class="fw-bold mb-3 section-title">Categories</h5>
+        <div id="category-chips" class="d-flex flex-wrap gap-2">
+          <span class="badge bg-primary category-pill active" onclick="filterByCategory(null)">All Categories</span>
+        </div>
+      </div>
+
+      <!-- Recipes Grid -->
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="fw-bold mb-0 section-title" id="recipes-section-title">All Recipes</h5>
+        <select id="sort-select" class="form-select form-select-sm w-auto" onchange="handleSortChange()">
+          <option value="newest">Sort: Newest</option>
+          <option value="oldest">Sort: Oldest</option>
+        </select>
+      </div>
+
+      <div class="row g-4" id="recipe-grid">
+        <!-- Dynamic recipe cards -->
+      </div>
+
+      <!-- Pagination -->
+      <nav class="mt-4 d-flex justify-content-center">
+        <ul class="pagination" id="pagination-controls"></ul>
+      </nav>
+    </section>
+
+    <!-- VIEW 2: Recipe Detail -->
+    <section id="view-detail" class="d-none">
+      <div class="mb-3">
+        <button class="btn btn-outline-secondary btn-sm" onclick="showView('home')">
+          <i class="bi bi-arrow-left"></i> Back to Recipes
+        </button>
+      </div>
+      <div class="bg-white rounded-3 shadow-sm p-4 mb-4" id="recipe-detail-container">
+        <!-- Dynamic detail content -->
+      </div>
+    </section>
+
+    <!-- VIEW 3: My Favorites -->
+    <section id="view-favorites" class="d-none">
+      <h3 class="fw-bold mb-4 section-title">My Favorite Recipes</h3>
+      <div class="row g-4" id="favorites-grid">
+        <!-- Dynamic favorite cards -->
+      </div>
+    </section>
+
+    <!-- VIEW 4: My Reviews -->
+    <section id="view-my-reviews" class="d-none">
+      <h3 class="fw-bold mb-4 section-title">My Reviews</h3>
+      <div class="list-group shadow-sm" id="my-reviews-list">
+        <!-- Dynamic my reviews -->
+      </div>
+    </section>
+
+    <!-- VIEW 5: Admin Panel -->
+    <section id="view-admin" class="d-none">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="fw-bold mb-0 section-title">Admin Management Panel</h3>
+      </div>
+
+      <ul class="nav nav-tabs mb-4" id="adminTabs" role="tablist">
+        <li class="nav-item">
+          <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-recipes" type="button">Recipes</button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-categories" type="button">Categories</button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-ingredients" type="button">Ingredients</button>
+        </li>
+      </ul>
+
+      <div class="tab-content bg-white p-4 rounded-3 shadow-sm">
+        <!-- Admin Recipes -->
+        <div class="tab-pane fade show active" id="tab-recipes">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold mb-0">Manage Recipes</h5>
+            <button class="btn btn-success btn-sm" onclick="openCreateRecipeModal()">
+              <i class="bi bi-plus-circle"></i> New Recipe
+            </button>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th>ID</th>
+                  <th>Image</th>
+                  <th>Title</th>
+                  <th>Category</th>
+                  <th>Difficulty</th>
+                  <th>Prep/Cook Time</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="admin-recipes-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Admin Categories -->
+        <div class="tab-pane fade" id="tab-categories">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold mb-0">Manage Categories</h5>
+            <button class="btn btn-success btn-sm" onclick="openCreateCategoryModal()">
+              <i class="bi bi-plus-circle"></i> New Category
+            </button>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th>ID</th>
+                  <th>Name</th>
+                  <th>Description</th>
+                  <th>Recipe Count</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="admin-categories-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Admin Ingredients -->
+        <div class="tab-pane fade" id="tab-ingredients">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold mb-0">Manage Ingredients</h5>
+            <button class="btn btn-success btn-sm" onclick="openCreateIngredientModal()">
+              <i class="bi bi-plus-circle"></i> New Ingredient
+            </button>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th>ID</th>
+                  <th>Name</th>
+                  <th>Default Unit</th>
+                  <th>Description</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="admin-ingredients-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Login Modal -->
+  <div class="modal fade" id="loginModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <form id="login-form" onsubmit="handleLogin(event)">
+          <div class="modal-header">
+            <h5 class="modal-title fw-bold">Sign In</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label">Email</label>
+              <input type="email" id="login-email" class="form-control" required placeholder="foodlover@example.com">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Password</label>
+              <input type="password" id="login-password" class="form-control" required placeholder="••••••••">
+            </div>
+            <div class="small text-muted">
+              Demo accounts:<br>
+              • Admin: <code>admin@example.com</code> / <code>AdminPassword123</code><br>
+              • Member: <code>foodlover@example.com</code> / <code>StrongPassword123</code>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-primary w-100">Login</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Register Modal -->
+  <div class="modal fade" id="registerModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <form id="register-form" onsubmit="handleRegister(event)">
+          <div class="modal-header">
+            <h5 class="modal-title fw-bold">Create an Account</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label">Username</label>
+              <input type="text" id="reg-username" class="form-control" required minlength="3" placeholder="myusername">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Email</label>
+              <input type="email" id="reg-email" class="form-control" required placeholder="user@example.com">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Password</label>
+              <input type="password" id="reg-password" class="form-control" required minlength="6" placeholder="At least 6 characters">
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-primary w-100">Register</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for Creating/Editing Recipe -->
+  <div class="modal fade" id="recipeModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <form id="recipe-form" onsubmit="handleSaveRecipe(event)">
+          <div class="modal-header">
+            <h5 class="modal-title fw-bold" id="recipeModalTitle">Create Recipe</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" id="rec-id">
+            <div class="row g-3 mb-3">
+              <div class="col-md-8">
+                <label class="form-label fw-semibold">Recipe Title *</label>
+                <input type="text" id="rec-title" class="form-control" required placeholder="e.g. Traditional Kimchi Fried Rice">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">Category *</label>
+                <select id="rec-category" class="form-select" required></select>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Description</label>
+              <textarea id="rec-desc" class="form-control" rows="2" placeholder="Brief summary of the dish..."></textarea>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Image URL (URL ảnh món ăn)</label>
+              <input type="text" id="rec-image" class="form-control" placeholder="https://images.unsplash.com/... hoặc /images/mon-an.jpg">
+              <div class="form-text small">Dán link ảnh online (Unsplash/Imgur) hoặc đường dẫn ảnh tĩnh trong thư mục <code>public/images/</code>.</div>
+            </div>
+
+            <div class="row g-3 mb-3">
+              <div class="col-md-3">
+                <label class="form-label fw-semibold">Prep Time (min) *</label>
+                <input type="number" id="rec-prep" class="form-control" min="0" required value="10">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-semibold">Cook Time (min) *</label>
+                <input type="number" id="rec-cook" class="form-control" min="0" required value="15">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-semibold">Servings *</label>
+                <input type="number" id="rec-servings" class="form-control" min="1" required value="2">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-semibold">Difficulty *</label>
+                <select id="rec-difficulty" class="form-select" required>
+                  <option value="EASY">EASY</option>
+                  <option value="MEDIUM">MEDIUM</option>
+                  <option value="HARD">HARD</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Ingredients Section -->
+            <div class="border rounded p-3 mb-3 bg-light">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <label class="form-label fw-bold mb-0">Ingredients *</label>
+                <button type="button" class="btn btn-outline-primary btn-sm" onclick="addIngredientRow()">
+                  <i class="bi bi-plus-circle"></i> Add Ingredient
+                </button>
+              </div>
+              <div id="recipe-ingredients-rows" class="d-flex flex-column gap-2"></div>
+            </div>
+
+            <!-- Steps Section -->
+            <div class="border rounded p-3 bg-light">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <label class="form-label fw-bold mb-0">Cooking Steps *</label>
+                <button type="button" class="btn btn-outline-primary btn-sm" onclick="addStepRow()">
+                  <i class="bi bi-plus-circle"></i> Add Step
+                </button>
+              </div>
+              <div id="recipe-steps-rows" class="d-flex flex-column gap-2"></div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save Recipe</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for Creating/Editing Category -->
+  <div class="modal fade" id="categoryModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <form id="category-form" onsubmit="handleSaveCategory(event)">
+          <div class="modal-header">
+            <h5 class="modal-title fw-bold" id="categoryModalTitle">Category</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" id="cat-id">
+            <div class="mb-3">
+              <label class="form-label">Category Name</label>
+              <input type="text" id="cat-name" class="form-control" required placeholder="e.g. Italian Food">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Description</label>
+              <textarea id="cat-desc" class="form-control" rows="3"></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-primary">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for Creating/Editing Ingredient -->
+  <div class="modal fade" id="ingredientModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <form id="ingredient-form" onsubmit="handleSaveIngredient(event)">
+          <div class="modal-header">
+            <h5 class="modal-title fw-bold" id="ingredientModalTitle">Ingredient</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" id="ing-id">
+            <div class="mb-3">
+              <label class="form-label">Ingredient Name</label>
+              <input type="text" id="ing-name" class="form-control" required placeholder="e.g. Black Pepper">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Default Unit</label>
+              <input type="text" id="ing-unit" class="form-control" required placeholder="e.g. gram, ml, piece">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Description</label>
+              <textarea id="ing-desc" class="form-control" rows="2"></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-primary">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="bg-white border-top py-3 mt-auto text-center text-muted small">
+    <div class="container">
+      Cooking Recipe Management System &copy; 2026. Built with Express, MySQL, Prisma, and Bootstrap.
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>

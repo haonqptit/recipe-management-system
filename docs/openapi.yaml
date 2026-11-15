@@ -1,0 +1,998 @@
+openapi: 3.0.3
+info:
+  title: Cooking Recipe Management System API
+  description: RESTful API for managing cooking recipes, categories, ingredients, favorites, reviews, and member accounts.
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000/api
+    description: Local development server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Category:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: Korean Food
+        description:
+          type: string
+          nullable: true
+          example: Traditional and modern Korean dishes
+        imageUrl:
+          type: string
+          nullable: true
+          example: null
+        recipeCount:
+          type: integer
+          example: 5
+
+    Ingredient:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: Rice
+        description:
+          type: string
+          nullable: true
+          example: White rice
+        defaultUnit:
+          type: string
+          example: gram
+
+    RecipeIngredient:
+      type: object
+      properties:
+        ingredientId:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: Rice
+        quantity:
+          type: number
+          example: 200
+        unit:
+          type: string
+          example: gram
+        note:
+          type: string
+          nullable: true
+          example: Cooked rice
+
+    RecipeStep:
+      type: object
+      properties:
+        stepNumber:
+          type: integer
+          example: 1
+        instruction:
+          type: string
+          example: Prepare ingredients
+        imageUrl:
+          type: string
+          nullable: true
+          example: null
+
+    RecipeSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        title:
+          type: string
+          example: Kimchi Fried Rice
+        description:
+          type: string
+          nullable: true
+          example: Korean fried rice with kimchi
+        imageUrl:
+          type: string
+          nullable: true
+          example: null
+        prepTime:
+          type: integer
+          example: 10
+        cookTime:
+          type: integer
+          example: 15
+        servings:
+          type: integer
+          example: 2
+        difficulty:
+          type: string
+          enum: [EASY, MEDIUM, HARD]
+          example: EASY
+        category:
+          type: object
+          properties:
+            id:
+              type: integer
+              example: 1
+            name:
+              type: string
+              example: Korean Food
+        averageRating:
+          type: number
+          example: 4.5
+        reviewCount:
+          type: integer
+          example: 2
+
+    RecipeDetail:
+      allOf:
+        - $ref: '#/components/schemas/RecipeSummary'
+        - type: object
+          properties:
+            ingredients:
+              type: array
+              items:
+                $ref: '#/components/schemas/RecipeIngredient'
+            steps:
+              type: array
+              items:
+                $ref: '#/components/schemas/RecipeStep'
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 10
+        total:
+          type: integer
+          example: 1
+        totalPages:
+          type: integer
+          example: 1
+
+    ApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Success
+        data:
+          type: object
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: Error message
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: VALIDATION_ERROR
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                  message:
+                    type: string
+
+paths:
+  # ==================== RECIPES ====================
+  /recipes:
+    get:
+      summary: RCP-01 List recipes
+      tags: [Recipes]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+        - name: categoryId
+          in: query
+          schema:
+            type: integer
+        - name: difficulty
+          in: query
+          schema:
+            type: string
+            enum: [EASY, MEDIUM, HARD]
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [newest, oldest]
+      responses:
+        200:
+          description: Recipes list retrieved successfully
+    post:
+      summary: RCP-03 Create recipe (Admin)
+      security:
+        - bearerAuth: []
+      tags: [Recipes]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, categoryId, prepTime, cookTime, servings, difficulty, ingredients, steps]
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                categoryId:
+                  type: integer
+                imageUrl:
+                  type: string
+                prepTime:
+                  type: integer
+                cookTime:
+                  type: integer
+                servings:
+                  type: integer
+                difficulty:
+                  type: string
+                  enum: [EASY, MEDIUM, HARD]
+                ingredients:
+                  type: array
+                  items:
+                    type: object
+                    required: [ingredientId, quantity, unit]
+                    properties:
+                      ingredientId:
+                        type: integer
+                      quantity:
+                        type: number
+                      unit:
+                        type: string
+                      note:
+                        type: string
+                steps:
+                  type: array
+                  items:
+                    type: object
+                    required: [stepNumber, instruction]
+                    properties:
+                      stepNumber:
+                        type: integer
+                      instruction:
+                        type: string
+                      imageUrl:
+                        type: string
+      responses:
+        201:
+          description: Recipe created successfully
+        400:
+          description: Validation error
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden - Admin only
+        404:
+          description: Category or ingredient not found
+
+  /recipes/search:
+    get:
+      summary: RCP-06 Search recipes
+      tags: [Recipes]
+      parameters:
+        - name: keyword
+          in: query
+          schema:
+            type: string
+        - name: categoryId
+          in: query
+          schema:
+            type: integer
+        - name: difficulty
+          in: query
+          schema:
+            type: string
+            enum: [EASY, MEDIUM, HARD]
+        - name: minPrepTime
+          in: query
+          schema:
+            type: integer
+        - name: maxPrepTime
+          in: query
+          schema:
+            type: integer
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Filtered recipes list
+
+  /recipes/{id}:
+    get:
+      summary: RCP-02 Get recipe details
+      tags: [Recipes]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Recipe details retrieved
+        404:
+          description: Recipe not found
+    put:
+      summary: RCP-04 Update recipe (Admin)
+      security:
+        - bearerAuth: []
+      tags: [Recipes]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Recipe updated successfully
+        403:
+          description: Admin only
+        404:
+          description: Recipe not found
+    delete:
+      summary: RCP-05 Delete recipe (Admin)
+      security:
+        - bearerAuth: []
+      tags: [Recipes]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Recipe deleted successfully
+        403:
+          description: Admin only
+        404:
+          description: Recipe not found
+
+  # ==================== CATEGORIES ====================
+  /categories:
+    get:
+      summary: CAT-01 List categories
+      tags: [Categories]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Categories retrieved
+    post:
+      summary: CAT-03 Create category (Admin)
+      security:
+        - bearerAuth: []
+      tags: [Categories]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                imageUrl:
+                  type: string
+      responses:
+        201:
+          description: Category created
+        409:
+          description: Duplicate category name
+
+  /categories/{id}:
+    get:
+      summary: CAT-02 Get category details
+      tags: [Categories]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Category detail
+        404:
+          description: Category not found
+    put:
+      summary: CAT-04 Update category (Admin)
+      security:
+        - bearerAuth: []
+      tags: [Categories]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Category updated
+        404:
+          description: Category not found
+        409:
+          description: Duplicate name
+    delete:
+      summary: CAT-05 Delete category (Admin)
+      security:
+        - bearerAuth: []
+      tags: [Categories]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Category deleted
+        409:
+          description: Category in use with recipes
+
+  /categories/{id}/recipes:
+    get:
+      summary: CAT-06 Get recipes by category
+      tags: [Categories]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: sort
+          in: query
+          schema:
+            type: string
+      responses:
+        200:
+          description: Recipes list in this category
+        404:
+          description: Category not found
+
+  # ==================== INGREDIENTS ====================
+  /ingredients:
+    get:
+      summary: ING-01 List ingredients
+      tags: [Ingredients]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Ingredients list
+    post:
+      summary: ING-03 Create ingredient (Admin)
+      security:
+        - bearerAuth: []
+      tags: [Ingredients]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, defaultUnit]
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                defaultUnit:
+                  type: string
+      responses:
+        201:
+          description: Ingredient created
+        409:
+          description: Duplicate name
+
+  /ingredients/search:
+    get:
+      summary: ING-06 Search ingredients
+      tags: [Ingredients]
+      parameters:
+        - name: keyword
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Search results
+
+  /ingredients/{id}:
+    get:
+      summary: ING-02 Get ingredient details
+      tags: [Ingredients]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Ingredient detail
+        404:
+          description: Ingredient not found
+    put:
+      summary: ING-04 Update ingredient (Admin)
+      security:
+        - bearerAuth: []
+      tags: [Ingredients]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Ingredient updated
+        404:
+          description: Ingredient not found
+        409:
+          description: Duplicate name
+    delete:
+      summary: ING-05 Delete ingredient (Admin)
+      security:
+        - bearerAuth: []
+      tags: [Ingredients]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Ingredient deleted
+        409:
+          description: Ingredient in use with recipes
+
+  # ==================== FAVORITES ====================
+  /favorites:
+    get:
+      summary: FAV-01 Get my favorites
+      security:
+        - bearerAuth: []
+      tags: [Favorites]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        200:
+          description: My favorites list
+        401:
+          description: Unauthorized
+    post:
+      summary: FAV-03 Add recipe to favorites
+      security:
+        - bearerAuth: []
+      tags: [Favorites]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [recipeId]
+              properties:
+                recipeId:
+                  type: integer
+      responses:
+        201:
+          description: Added to favorites
+        404:
+          description: Recipe not found
+        409:
+          description: Already favorited
+
+  /favorites/recipe/{recipeId}:
+    get:
+      summary: FAV-05 Check favorite status
+      security:
+        - bearerAuth: []
+      tags: [Favorites]
+      parameters:
+        - name: recipeId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Favorite status (isFavorite true/false)
+    delete:
+      summary: FAV-06 Remove favorite by recipeId
+      security:
+        - bearerAuth: []
+      tags: [Favorites]
+      parameters:
+        - name: recipeId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Removed from favorites
+        404:
+          description: Not in favorites
+
+  /favorites/{id}:
+    get:
+      summary: FAV-02 Get favorite detail by ID
+      security:
+        - bearerAuth: []
+      tags: [Favorites]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Favorite item detail
+        404:
+          description: Favorite not found
+    delete:
+      summary: FAV-04 Remove favorite by ID
+      security:
+        - bearerAuth: []
+      tags: [Favorites]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Favorite removed
+        404:
+          description: Favorite not found
+
+  # ==================== REVIEWS ====================
+  /reviews:
+    post:
+      summary: REV-03 Create review
+      security:
+        - bearerAuth: []
+      tags: [Reviews]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [recipeId, rating]
+              properties:
+                recipeId:
+                  type: integer
+                rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                comment:
+                  type: string
+                  maxLength: 2000
+      responses:
+        201:
+          description: Review created
+        400:
+          description: Invalid rating
+        404:
+          description: Recipe not found
+        409:
+          description: Already reviewed
+
+  /reviews/my-reviews:
+    get:
+      summary: REV-06 Get my reviews
+      security:
+        - bearerAuth: []
+      tags: [Reviews]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        200:
+          description: List of current user's reviews
+
+  /reviews/recipe/{recipeId}:
+    get:
+      summary: REV-01 Get reviews for a recipe
+      tags: [Reviews]
+      parameters:
+        - name: recipeId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [newest, highest, lowest]
+      responses:
+        200:
+          description: Reviews list and summary
+        404:
+          description: Recipe not found
+
+  /reviews/{id}:
+    get:
+      summary: REV-02 Get review details
+      tags: [Reviews]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Review detail
+        404:
+          description: Review not found
+    put:
+      summary: REV-04 Update my review
+      security:
+        - bearerAuth: []
+      tags: [Reviews]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                comment:
+                  type: string
+      responses:
+        200:
+          description: Review updated
+        404:
+          description: Review not found or not owner
+    delete:
+      summary: REV-05 Delete review (Owner or Admin)
+      security:
+        - bearerAuth: []
+      tags: [Reviews]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Review deleted
+        403:
+          description: Not authorized
+        404:
+          description: Review not found
+
+  # ==================== MEMBERS ====================
+  /members/register:
+    post:
+      summary: MEM-01 Register user
+      tags: [Members]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, email, password]
+              properties:
+                username:
+                  type: string
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        201:
+          description: Registration successful
+        400:
+          description: Validation error
+        409:
+          description: Duplicate username or email
+
+  /members/login:
+    post:
+      summary: MEM-02 Member login
+      tags: [Members]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        200:
+          description: Login successful with JWT token
+        401:
+          description: Invalid email or password
+
+  /members/me:
+    get:
+      summary: MEM-03 Get current user profile
+      security:
+        - bearerAuth: []
+      tags: [Members]
+      responses:
+        200:
+          description: User profile
+        401:
+          description: Unauthorized
+    put:
+      summary: MEM-04 Update profile
+      security:
+        - bearerAuth: []
+      tags: [Members]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                email:
+                  type: string
+      responses:
+        200:
+          description: Profile updated
+        409:
+          description: Duplicate username or email
+
+  /members/change-password:
+    put:
+      summary: MEM-05 Change password
+      security:
+        - bearerAuth: []
+      tags: [Members]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword]
+              properties:
+                currentPassword:
+                  type: string
+                newPassword:
+                  type: string
+      responses:
+        200:
+          description: Password changed successfully
+        401:
+          description: Current password incorrect
+
+  /members/logout:
+    post:
+      summary: MEM-06 Logout
+      security:
+        - bearerAuth: []
+      tags: [Members]
+      responses:
+        200:
+          description: Logout successful

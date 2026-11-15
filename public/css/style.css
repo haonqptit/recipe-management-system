@@ -1,0 +1,117 @@
+:root {
+  --primary-color: #ff6b35;
+  --secondary-color: #f7c59f;
+  --dark-color: #2b2d42;
+  --light-bg: #f8f9fa;
+  --accent-color: #004e89;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: var(--light-bg);
+  color: #333;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+main {
+  flex: 1;
+}
+
+.navbar-brand {
+  font-weight: 700;
+  color: var(--primary-color) !important;
+  font-size: 1.4rem;
+}
+
+.btn-primary {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.btn-primary:hover, .btn-primary:focus {
+  background-color: #e85a25;
+  border-color: #e85a25;
+}
+
+.badge-easy {
+  background-color: #28a745;
+}
+
+.badge-medium {
+  background-color: #ffc107;
+  color: #212529;
+}
+
+.badge-hard {
+  background-color: #dc3545;
+}
+
+.recipe-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+  border: none;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.recipe-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+}
+
+.recipe-card .card-img-top {
+  height: 180px;
+  object-fit: cover;
+  background-color: #eee;
+}
+
+.category-pill {
+  cursor: pointer;
+  border-radius: 20px;
+  padding: 6px 16px;
+  transition: all 0.2s ease;
+}
+
+.category-pill.active {
+  background-color: var(--primary-color);
+  color: #fff !important;
+}
+
+.rating-star {
+  color: #ffc107;
+}
+
+.nav-link {
+  font-weight: 500;
+}
+
+.section-title {
+  font-weight: 700;
+  position: relative;
+  padding-bottom: 8px;
+}
+
+.section-title::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 50px;
+  height: 3px;
+  background-color: var(--primary-color);
+  border-radius: 2px;
+}
+
+.step-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: var(--primary-color);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
